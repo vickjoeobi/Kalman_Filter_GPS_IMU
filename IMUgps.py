@@ -1,68 +1,74 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#
+# Simple IMU V2 csv data logger
 
 HOST = "localhost"
 PORT = 4223
-UID = "6ypCku" # Change XXYYZZ to the UID of your IMU Brick 2.0
-gpsUID = "21NG"
+READ_PERIOD = 100 # in ms
+READ_PERIODgps = 1000
+
+
 
 from tinkerforge.ip_connection import IPConnection
 from tinkerforge.brick_imu_v2 import BrickIMUV2
-from tinkerforge.bricklet_gps_v3 import BrickletGPSV3
+from tinkerforge.bricklet_gps_v2 import BrickletGPSV2
 
-# Callback function for all data callback
-def cb_all_data(acceleration, magnetic_field, angular_velocity, euler_angle, quaternion,
-                linear_acceleration, gravity_vector, temperature, calibration_status):
-    print("Acceleration [X]: " + str(acceleration[0]/100.0) + " m/s²")
-    print("Acceleration [Y]: " + str(acceleration[1]/100.0) + " m/s²")
-    print("Acceleration [Z]: " + str(acceleration[2]/100.0) + " m/s²")
-    print("Magnetic Field [X]: " + str(magnetic_field[0]/16.0) + " µT")
-    print("Magnetic Field [Y]: " + str(magnetic_field[1]/16.0) + " µT")
-    print("Magnetic Field [Z]: " + str(magnetic_field[2]/16.0) + " µT")
-    print("Angular Velocity [X]: " + str(angular_velocity[0]/16.0) + " °/s")
-    print("Angular Velocity [Y]: " + str(angular_velocity[1]/16.0) + " °/s")
-    print("Angular Velocity [Z]: " + str(angular_velocity[2]/16.0) + " °/s")
-    print("Euler Angle [Heading]: " + str(euler_angle[0]/16.0) + " °")
-    print("Euler Angle [Roll]: " + str(euler_angle[1]/16.0) + " °")
-    print("Euler Angle [Pitch]: " + str(euler_angle[2]/16.0) + " °")
-    print("Quaternion [W]: " + str(quaternion[0]/16383.0))
-    print("Quaternion [X]: " + str(quaternion[1]/16383.0))
-    print("Quaternion [Y]: " + str(quaternion[2]/16383.0))
-    print("Quaternion [Z]: " + str(quaternion[3]/16383.0))
-    print("Linear Acceleration [X]: " + str(linear_acceleration[0]/100.0) + " m/s²")
-    print("Linear Acceleration [Y]: " + str(linear_acceleration[1]/100.0) + " m/s²")
-    print("Linear Acceleration [Z]: " + str(linear_acceleration[2]/100.0) + " m/s²")
-    print("Gravity Vector [X]: " + str(gravity_vector[0]/100.0) + " m/s²")
-    print("Gravity Vector [Y]: " + str(gravity_vector[1]/100.0) + " m/s²")
-    print("Gravity Vector [Z]: " + str(gravity_vector[2]/100.0) + " m/s²")
-    print("Temperature: " + str(temperature) + " °C")
-    print("Calibration Status: " + format(calibration_status, "08b"))
-    print("")
-    
-def cb_coordinates(latitude, ns, longitude, ew):
-    print("Latitude: " + str(latitude/1000000.0) + " °")
-    print("N/S: " + ns)
-    print("Longitude: " + str(longitude/1000000.0) + " °")
-    print("E/W: " + ew)
-    print("")
+import time
+import sys
+import csv
+from datetime import date
+
+imu_uid = "ypCku"
+gps_uid = "2ING"
+
+def cb_enumerate(uid, connected_uid, position, hardware_version, firmware_version,
+                 device_identifier, enumeration_type):
+    if enumeration_type == IPConnection.ENUMERATION_TYPE_DISCONNECTED:
+        return
+
+    # Set imu_uid if any IMU is discovered, we assume that there is only 
+    if device_identifier == 18:
+        global imu_uid
+        imu_uid = uid
 
 if __name__ == "__main__":
     ipcon = IPConnection() # Create IP connection
-    imu = BrickIMUV2(UID, ipcon) # Create device object
-    gps = BrickletGPSV3(gpsUID, ipcon)
-
     ipcon.connect(HOST, PORT) # Connect to brickd
-    # Don't use device before ipcon is connected
 
-    # Register all data callback to function cb_all_data
-    gps.register_callback(gps.CALLBACK_COORDINATES, cb_coordinates)
-    imu.register_callback(imu.CALLBACK_ALL_DATA, cb_all_data)
+    # Register Enumerate Callback
+    ipcon.register_callback(IPConnection.CALLBACK_ENUMERATE, cb_enumerate)
+
+    # Trigger Enumerate
+    ipcon.enumerate()
+
+    # Wait for 1 second enumeration
+    time.sleep(1)
 
 
-    # Set period for all data callback to 0.1s (100ms)
-    imu.set_all_data_period(100)
-    gps.set_coordinates_callback_period(1000)
+    imu = BrickIMUV2(imu_uid, ipcon) # Create device object
+    gps = BrickletGPSV2(gps_uid, ipcon) # Create device object
 
-    input("Press key to exit\n") # Use raw_input() in Python 2
+
+    try:
+        while True:
+            time.sleep(1.0/(1000.0/READ_PERIOD))
+
+            acceleration, magnetic_field, angular_velocity, \
+            euler_angle, quaternion, linear_acceleration, gravity_vector, \
+            temperature, calibration_status = imu.get_all_data()
+
+            latitude, ns, longitude, ew = gps.get_coordinates()
+
+            print("Acceleration [X]: " + str(acceleration[0]/100.0) + " g")
+            print("Acceleration [Y]: " + str(acceleration[1]/100.0) + " g")
+            print("Acceleration [Z]: " + str(acceleration[2]/100.0) + " g")
+            print("")
+            print("Longitude: " + str(longitude/1000000.0) + " °")
+            print("Latitude: " + str(latitude/1000000.0) + " °")
+            print("")
+
+    except KeyboardInterrupt:
+        pass
+        
     ipcon.disconnect()
-
