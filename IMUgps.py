@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#
-# Simple IMU V2 csv data logger
+
 
 HOST = "localhost"
 PORT = 4223
@@ -12,7 +11,7 @@ READ_PERIODgps = 1000
 
 from tinkerforge.ip_connection import IPConnection
 from tinkerforge.brick_imu_v2 import BrickIMUV2
-from tinkerforge.bricklet_gps_v2 import BrickletGPSV2
+from tinkerforge.bricklet_gps_v3 import BrickletGPSV3
 
 import time
 import sys
@@ -20,7 +19,7 @@ import csv
 from datetime import date
 
 imu_uid = "ypCku"
-gps_uid = "2ING"
+gps_uid = "21NG"
 
 def cb_enumerate(uid, connected_uid, position, hardware_version, firmware_version,
                  device_identifier, enumeration_type):
@@ -47,7 +46,7 @@ if __name__ == "__main__":
 
 
     imu = BrickIMUV2(imu_uid, ipcon) # Create device object
-    gps = BrickletGPSV2(gps_uid, ipcon) # Create device object
+    gps = BrickletGPSV3(gps_uid, ipcon) # Create device object
 
 
     try:
