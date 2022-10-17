@@ -30,6 +30,32 @@ def cb_enumerate(uid, connected_uid, position, hardware_version, firmware_versio
     if device_identifier == 18:
         global imu_uid
         imu_uid = uid
+        
+def kalman_filter_fussion_imu_gps(x, P, measurement, R, motion, Q, B):
+    """
+    Parameters:
+    x: initial state 4-tuple of location and velocity: (x0, x1, x2, x3)
+    P: initial uncertainty convariance matrix
+    measurement: observed position
+    R: measurement noise 
+    motion: external motion added to state vector x
+    Q: motion noise (same shape as P)
+    B: next state function: x_prime = B*x
+    """
+    # UPDATE x, P based on measurement m
+    # distance between measured and current position-belief
+    y = np.matrix(measurement).T - B * x
+    S = B * P * B.T + R # residual convariance
+    K = P * B.T * S.I    # Kalman gain
+    x = x + K*y
+    I = np.matrix(np.eye(P.shape[0])) # identity matrix
+    P = (I - K*B)*P
+
+    # PREDICT x, P based on motion
+    x = B*x + motion
+    P = B*P*B.T + Q
+
+    return x, P 
 
 if __name__ == "__main__":
     ipcon = IPConnection() # Create IP connection
