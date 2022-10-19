@@ -221,27 +221,7 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
         # Save states for Plotting
         savestates(x, Z, P, K)
         
-        print()
-        print("x = ")
-        print(x)
-        print("P = ")
-        print(P)
-        print("K = ")
-        print(K)
-        print("Z = ")
-        print(Z)
-        print("hx = ")
-        print(hx)
-        print("y = ")
-        print(y)
-        print("S = ")
-        print(S)
-        print("JA = ")
-        print(JA)
-        print("JH = ")
-        print(JH)
-        print("dstate = ")
-        print(dstate)
+        prin
 
         # Predict next state with the most current state and covariance matrix
         GPS = not GPS
@@ -272,29 +252,34 @@ if __name__ == "__main__":
     gps = BrickletGPSV3(GPS_UID, ipcon) # Create device object
     imu = BrickIMUV2(IMU_UID, ipcon) # Create device object
 
+    csv_file = open('data.csv', 'w')
+    csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    csv_writer.writerow(['yawrate', 'speed', 'course', 'latitude', 'longitude', 'attitude'])
 
 
-    while True:
-        # Read imu data
-        imu_data = imu.get_all_data()
-        # Read gps data
-        gps_data = gps.get_coordinates()
+    try:
+        while True:
+            # Read imu data
+            imu_data = imu.get_all_data()
+            # Read gps data
+            gps_data = gps.get_coordinates()
 
-        yawrate = imu_data.angular_velocity[2]/16.0
-        course = gps_data.heading/100.0
-        speed = gps_data.speed/1000.0
-        latitude = gps_data.latitude/10000000.0
-        longitude = gps_data.longitude/10000000.0
-        altitude = gps_data.altitude/1000.0
+            yawrate = imu_data.angular_velocity[2]/16.0
+            course = gps_data.heading/100.0
+            speed = gps_data.speed/1000.0
+            latitude = gps_data.latitude/10000000.0
+            longitude = gps_data.longitude/10000000.0
+            altitude = gps_data.altitude/1000.0
 
-        kalman_filter(yawrate, course, speed, latitude, longitude, altitude)
+            csv_writer.writerow([yawrate, speed, course, latitude, longitude, altitude])
 
-
-
-        # Wait for 100 ms
-        time.sleep(0.1)
+            kalman_filter(yawrate, course, speed, latitude, longitude, altitude)
 
 
+            # Wait for 100 ms
+            time.sleep(0.1)
+            
+    except KeyboardInterrupt:
+        pass
 
-    input("Press key to exit\n") # Use raw_input() in Python 2
     ipcon.disconnect()

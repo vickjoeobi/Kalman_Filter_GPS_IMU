@@ -46,7 +46,7 @@ Q = np.diag([sGPS**2, sGPS**2, sCourse**2, sVelocity**2, sYaw**2])
 print(Q, Q.shape)
 
 
-datafile = '2014-03-26-000-Data.csv'
+datafile = 'data.csv'
 
 
 yawrate, speed, course, latitude, longitude, altitude = np.loadtxt(datafile, delimiter=',', unpack=True, 
