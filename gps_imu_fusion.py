@@ -221,7 +221,9 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
         # Save states for Plotting
         savestates(x, Z, P, K)
         
-        prin
+        #print input position and predicted position
+        print("x: ", x[0], x[1], x[2], x[3], x[4])
+        print("z: ", Z[0], Z[1], Z[2], Z[3])
 
         # Predict next state with the most current state and covariance matrix
         GPS = not GPS
@@ -264,9 +266,10 @@ if __name__ == "__main__":
             # Read gps data
             gps_data = gps.get_coordinates()
 
-            yawrate = imu_data.angular_velocity[2]/16.0
-            course = gps_data.heading/100.0
-            speed = gps_data.speed/1000.0
+            yawrate = imu_data.angular_velocity[2]
+            course = imu_data.euler_angle[2]
+            speed = imu_data.linear_acceleration[2]
+
             latitude = gps_data.latitude/10000000.0
             longitude = gps_data.longitude/10000000.0
             altitude = gps_data.altitude/1000.0

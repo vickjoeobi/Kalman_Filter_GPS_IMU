@@ -46,7 +46,7 @@ Q = np.diag([sGPS**2, sGPS**2, sCourse**2, sVelocity**2, sYaw**2])
 print(Q, Q.shape)
 
 
-datafile = 'data.csv'
+datafile = '2014-03-26-000-Data.csv'
 
 
 yawrate, speed, course, latitude, longitude, altitude = np.loadtxt(datafile, delimiter=',', unpack=True, 
@@ -216,6 +216,9 @@ for filterstep in range(m):
     
     # Save states for Plotting
     savestates(x, Z, P, K)
+
+    print("x: ", x[0], x[1], x[2], x[3], x[4])
+    print("z: ", Z[0], Z[1], Z[2], Z[3])
 
 
 # Plot the filter performance

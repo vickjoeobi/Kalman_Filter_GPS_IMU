@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+
+import rospy
+import math
+
 import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -6,6 +11,54 @@ from sympy import Symbol, symbols, Matrix, sin, cos
 from sympy import init_printing
 init_printing(use_latex=True)
 
+
+
+from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Range
+from mavros_msgs.msg import GPSRAW
+
+
+pub = rospy.Publisher('/mavros/test', Range, queue_size=1000) 
+sen_num = 1
+sensor_left = 0.0
+sensor_bottom = 0.0
+
+def callback1(data):
+    print ("IMU quaternion: ", data.orientation)
+    print ("IMU angular velocity: ", data.angular_velocity)
+    print ("IMU Linear acceleration: ", data.linear_acceleration)
+    print("---------------")
+    print("")
+    
+    return data.orientation, data.angular_velocity, data.linear_acceleration
+    
+    #print(sensor_left)
+
+def callback2(data):
+    print ("GPS Lat: ", data.lat)
+    print ("GPS Lon: ", data.lon)
+    print ("GPS Alt: ", data.alt)
+    print("---------------")
+    print("")
+
+    return data.lat, data.lon, data.alt
+
+def timer_callback(event):
+    print("test")
+    
+
+
+def listener():
+     
+    rospy.init_node('sensor_handler', anonymous=True)
+
+    rospy.Subscriber('mavros/imu/data', Imu, callback1)
+    rospy.Subscriber('mavros/gpsstatus/gps1/raw', GPSRAW, callback2)
+    
+    #timer = rospy.Timer(rospy.Duration(0.01), timer_callback)
+
+    rospy.spin()    
+    timer.shutdown()
 
 def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
 
@@ -216,3 +269,7 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
         # Predict next state with the most current state and covariance matrix
         GPS = not GPS
 
+if __name__ == '__main__':
+    print ("Running")
+    listener()
+ 
