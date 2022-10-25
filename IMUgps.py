@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""This function extracts the IMU and GPS data from the Tinkerforge Bricklets"""
+
 
 HOST = "localhost"
 PORT = 4223

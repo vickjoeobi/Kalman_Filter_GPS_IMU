@@ -1,7 +1,8 @@
-#!/usr/bin/env python
-
-import rospy
-import math
+"""This function implements the Extended Kalman Filter (EKF) for state estimation. 
+It takes in the current state estimate, the current control input, 
+and the current measurement. It returns the updated state estimate 
+and the updated covariance matrix.
+This function does not plot anything. It is up to you to plot the graphs"""
 
 import numpy as np
 import matplotlib.dates as mdates
@@ -11,81 +12,22 @@ from sympy import Symbol, symbols, Matrix, sin, cos
 from sympy import init_printing
 init_printing(use_latex=True)
 
-
-
-from sensor_msgs.msg import Imu
-from sensor_msgs.msg import Range
-from mavros_msgs.msg import GPSRAW
-
-
-pub = rospy.Publisher('/mavros/test', Range, queue_size=1000) 
-sen_num = 1
-sensor_left = 0.0
-sensor_bottom = 0.0
-
-def callback1(data):
-    print ("IMU quaternion: ", data.orientation)
-    print ("IMU angular velocity: ", data.angular_velocity)
-    print ("IMU Linear acceleration: ", data.linear_acceleration)
-    print("---------------")
-    print("")
-    
-    return data.orientation, data.angular_velocity, data.linear_acceleration
-    
-    #print(sensor_left)
-
-def callback2(data):
-    print ("GPS Lat: ", data.lat)
-    print ("GPS Lon: ", data.lon)
-    print ("GPS Alt: ", data.alt)
-    print("---------------")
-    print("")
-
-    return data.lat, data.lon, data.alt
-
-def timer_callback(event):
-    print("test")
-    
-
-
-def listener():
-     
-    rospy.init_node('sensor_handler', anonymous=True)
-
-    rospy.Subscriber('mavros/imu/data', Imu, callback1)
-    rospy.Subscriber('mavros/gpsstatus/gps1/raw', GPSRAW, callback2)
-    
-    #timer = rospy.Timer(rospy.Duration(0.01), timer_callback)
-
-    rospy.spin()    
-    timer.shutdown()
-
-def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
-
+def Extended_Kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
     numstates = 5  # Number of states
 
-    vs, psis, dts, xs, ys, lats, lons = symbols('v \psi T x y lat lon') # Symbols for states
-
-    #We have different frequencies for the IMU and GPS
     dt = 1.0/50.0 # Sample Rate of the Measurements is 50Hz
     dtGPS=1.0/10.0 # Sample Rate of GPS is 10Hz
 
     vs, psis, dpsis, dts, xs, ys, lats, lons = symbols('v \psi \dot\psi T x y lat lon')
 
-    # Dynamic model calculates how the states change over time
     gs = Matrix([[xs+(vs/dpsis)*(sin(psis+dpsis*dts)-sin(psis))],
                 [ys+(vs/dpsis)*(-cos(psis+dpsis*dts)+cos(psis))],
                 [psis+dpsis*dts],
                 [vs],
                 [dpsis]])
+    state = Matrix([xs,ys,psis,vs,dpsis]) # Initial Uncertainty in the states (P0)
 
-    state = Matrix([xs,ys,psis,vs,dpsis])
-
-    # Initial Uncertainty in the states (P0)
-
-    P = np.diag([1000.0, 1000.0, 1000.0, 1000.0, 1000.0])
-
-    # Process Noise Covariance Matrix (Q)
+    P = np.diag([1000.0, 1000.0, 1000.0, 1000.0, 1000.0]) # Process Noise Covariance Matrix (Q)
 
     sGPS     = 0.5*8.8*dt**2  # assume 8.8m/s2 as maximum acceleration, forcing the vehicle
     sCourse  = 0.1*dt # assume 0.1rad/s as maximum turn rate for the vehicle
@@ -101,19 +43,15 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
     longitude = longitude
     altitude = altitude
 
+    course =(-course+90.0)
 
-    #Measurement function
     hs = Matrix([[xs],
-                [ys],
-                [vs],
-                [dpsis]])
+             [ys],
+             [vs],
+             [dpsis]]) #calculate the Jacobian of the measurement model
 
-    #calculate the Jacobian of the measurement model
-    JHs=hs.jacobian(state)
-
-    # Measurement Noise Covariance Matrix (R)
-
-    varGPS = 6.0 # Standard Deviation of GPS Measurement
+    JHs=hs.jacobian(state) # Measurement Noise Covariance Matrix (R)
+    varGPS = 1.0 # Standard Deviation of GPS Measurement
     varspeed = 1.0 # Variance of the speed measurement
     varyaw = 0.1 # Variance of the yawrate measurement
     R = np.matrix([[varGPS**2, 0.0, 0.0, 0.0],
@@ -121,12 +59,10 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
                 [0.0, 0.0, varspeed**2, 0.0],
                 [0.0, 0.0, 0.0, varyaw**2]])
 
-    # Identity Matrix
-    I = np.eye(numstates)
+    I = np.eye(numstates) # Identity Matrix
 
-    # Approximate lon/lat to meters conversion to check location
     RadiusEarth = 6378388.0 # m
-    arc = 2.0*np.pi*(RadiusEarth+altitude)/360.0 # m/°
+    arc= 2.0*np.pi*(RadiusEarth+altitude)/360.0 # m/°
 
     dx = arc * np.cos(latitude*np.pi/180.0) * np.hstack((0.0, np.diff(longitude))) # in m
     dy = arc * np.hstack((0.0, np.diff(latitude))) # in m
@@ -136,58 +72,14 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
 
     ds = np.sqrt(dx**2+dy**2)
 
-    GPS = (ds!=0.0).astype('bool') # GPS Trigger for Kalman Filter
+    GPS=(ds!=0.0).astype('bool') # GPS Trigger for Kalman Filter
 
-    # Initial State
     x = np.matrix([[mx[0], my[0], course[0]/180.0*np.pi, speed[0]/3.6+0.001, yawrate[0]/180.0*np.pi]]).T
 
-    U = float(np.cos(x[2])*x[3])
-    V = float(np.sin(x[2])*x[3])
+    U=float(np.cos(x[2])*x[3])
+    V=float(np.sin(x[2])*x[3])
 
-    # Measurement Vector can also be denoted as Z
     measurements = np.vstack((mx, my, speed/3.6, yawrate/180.0*np.pi))
-
-    # Preallocation for Plotting
-    x0 = []
-    x1 = []
-    x2 = []
-    x3 = []
-    x4 = []
-    x5 = []
-    Zx = []
-    Zy = []
-    Px = []
-    Py = []
-    Pdx= []
-    Pdy= []
-    Pddx=[]
-    Pddy=[]
-    Kx = []
-    Ky = []
-    Kdx= []
-    Kdy= []
-    Kddx=[]
-    dstate=[]
-
-
-    def savestates(x, Z, P, K):
-        x0.append(float(x[0]))
-        x1.append(float(x[1]))
-        x2.append(float(x[2]))
-        x3.append(float(x[3]))
-        x4.append(float(x[4]))
-        Zx.append(float(Z[0]))
-        Zy.append(float(Z[1]))    
-        Px.append(float(P[0,0]))
-        Py.append(float(P[1,1]))
-        Pdx.append(float(P[2,2]))
-        Pdy.append(float(P[3,3]))
-        Pddx.append(float(P[4,4]))
-        Kx.append(float(K[0,0]))
-        Ky.append(float(K[1,0]))
-        Kdx.append(float(K[2,0]))
-        Kdy.append(float(K[3,0]))
-        Kddx.append(float(K[4,0]))
 
     while True:
 
@@ -195,20 +87,21 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
         # ========================
         # Project the state ahead
         # see "Dynamic Matrix"
+
+        longi = x[0]
+        lati = x[1]
         if np.abs(yawrate)<0.0001: # Driving straight
             x[0] = x[0] + x[3]*dt * np.cos(x[2])
             x[1] = x[1] + x[3]*dt * np.sin(x[2])
             x[2] = x[2]
             x[3] = x[3]
             x[4] = 0.0000001 # avoid numerical issues in Jacobians
-            dstate.append(0)
         else: # otherwise
             x[0] = x[0] + (x[3]/x[4]) * (np.sin(x[4]*dt+x[2]) - np.sin(x[2]))
             x[1] = x[1] + (x[3]/x[4]) * (-np.cos(x[4]*dt+x[2])+ np.cos(x[2]))
             x[2] = (x[2] + x[4]*dt + np.pi) % (2.0*np.pi) - np.pi
             x[3] = x[3]
             x[4] = x[4]
-            dstate.append(1)
         
         # Calculate the Jacobian of the Dynamic Matrix A
         # see "Calculate the Jacobian of the Dynamic Matrix with respect to the state vector"
@@ -258,18 +151,16 @@ def kalman_filter(yawrate, speed, course, latitude, longitude, altitude):
         # Update the error covariance
         P = (I - (K*JH))*P
 
+        newLongi = x[0]
+        newLati = x[1]
 
+        #Printing the results in a table like format
         
-        # Save states for Plotting
-        savestates(x, Z, P, K)
-        
-        print("x: ", x[0], x[1], x[2], x[3], x[4])
-        print("z: ", Z[0], Z[1], Z[2], Z[3])
+        print("---------------------------------------")
+        print("| Longitude | Pred.Longitude | Difference | Latitude | Pred.Latitude | Difference |")
+        print("|",longi,"|",newLongi,"|",newLongi-longi,"|",lati,"|",newLati,"|",newLati-lati,"|")
+        print("---------------------------------------")
+
 
         # Predict next state with the most current state and covariance matrix
         GPS = not GPS
-
-if __name__ == '__main__':
-    print ("Running")
-    listener()
- 

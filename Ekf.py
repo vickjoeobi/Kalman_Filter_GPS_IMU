@@ -1,3 +1,5 @@
+""" This file contains the implementation of Extended Kalman filter including plotting functions. """
+
 import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -289,7 +291,7 @@ def plotx():
     plt.legend(loc='best',prop={'size':16})
     plt.xlabel('Filter Step')
 
-    plt.savefig('Extended-Kalman-Filter-CTRV-State-Estimates.png', dpi=72, transparent=True, bbox_inches='tight')
+    plt.savefig('Extended-Kalman-Filter-CTRV-State-Estimates.png', bbox_inches='tight')
 
 plotx()
 
@@ -319,7 +321,7 @@ def plotxy():
     plt.axis('equal')
     plt.tight_layout()
 
-    plt.savefig('Extended-Kalman-Filter-CTRV-Position.png', dpi=72, transparent=True, bbox_inches='tight')
+    plt.savefig('Extended-Kalman-Filter-CTRV-Position.png', bbox_inches='tight')
 
 plotxy()
 
